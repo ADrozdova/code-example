@@ -1,0 +1,247 @@
+#include <iostream>
+template <typename T>
+struct VectorBase {
+    T * data = nullptr;
+    size_t capacity = 0;
+    VectorBase() {
+    }
+    VectorBase(size_t n) {
+        data = reinterpret_cast<T*>(operator new (n * sizeof(T)));
+        capacity = n;
+    }
+
+    ~VectorBase() {
+        operator delete(data);
+    }
+};
+
+template <typename T>
+class Vector {
+private:
+    VectorBase<T> base;
+    size_t sz = 0;
+
+    void reallocate() {
+        if (base.capacity == 0) {
+            operator delete(base.data);
+            base.data = reinterpret_cast<T*>(operator new (sizeof(T)));
+            base.capacity = 1;
+            return;
+        }
+        size_t i;
+        auto tmp = reinterpret_cast<T*>(operator new (base.capacity * 2 * sizeof(T)));
+        try {
+            for (i = 0; i < sz; ++i) {
+                new (tmp + i) T(*(base.data + i));
+            }
+        } catch (...) {
+            for (size_t j = 0; j != i; ++j) {
+                tmp[j].~T();
+            }
+            operator delete(tmp);
+            throw;
+        }
+        for (size_t i = 0; i != sz; ++i) {
+            base.data[i].~T();
+        }
+        operator delete(base.data);
+        base.data = tmp;
+        base.capacity = 2 * base.capacity;
+        tmp = nullptr;
+        operator delete(tmp);
+    }
+
+public:
+    Vector() : base() {
+    }
+    Vector(size_t n) : base(n) {
+    }
+    Vector(size_t n, const T& elem) : base(n) {
+        size_t i;
+        try {
+            for (i = 0; i < n; ++i) {
+                new (base.data + i) T(elem);
+            }
+        } catch (...) {
+            for (size_t j = 0; j != i; ++j) {
+                base.data[j].~T();
+            }
+            operator delete (base.data);
+            throw;
+        }
+    }
+    Vector(const Vector& other) : base(other.sz) {
+        sz = other.sz;
+        for (int i = 0; i < sz; ++i) {
+            new (base.data + i) T(*(other.base.data + i));
+        }
+    }
+    Vector& operator =(const Vector& other) {
+        auto tmp = base.data;
+        auto tmp_sz = sz;
+        size_t i;
+        try {
+            base.data = reinterpret_cast<T*>(operator new (other.sz * sizeof(T)));
+            for (i = 0; i < other.sz; ++i) {
+                new (base.data + i) T(*(other.base.data + i));
+            }
+            sz = other.sz;
+        } catch (...) {
+            for (size_t j = 0; i < i; ++j) {
+                base.data[j].~T();
+            }
+            operator delete(base.data);
+            base.data = tmp;
+            throw;
+        }
+        for (size_t i = 0; i != tmp_sz; ++i) {
+            tmp[i].~T();
+        }
+        operator delete(tmp);
+        return *this;
+    }
+    ~Vector() {
+        for (size_t i = 0; i != sz; ++i) {
+            base.data[i].~T();
+        }
+    }
+    void push_back(const T& elem) {
+        try {
+            if (base.capacity < sz + 1) {
+                reallocate();
+            }
+            new (base.data + sz) T(elem);
+            ++sz;
+        } catch (...) {
+            throw;
+        }
+    }
+    void push_back(T&& elem) {
+        try {
+            if (base.capacity < sz + 1) {
+                reallocate();
+            }
+            new (base.data + sz) T(std::move(elem));
+            ++sz;
+        } catch (...) {
+            throw;
+        }
+    }
+    void pop_back() {
+        try {
+            base.data[sz - 1].~T();
+            --sz;
+        } catch(...) {
+            throw;
+        }
+    }
+    size_t capacity() const {
+        return base.capacity;
+    }
+    size_t size() const {
+        return sz;
+    }
+    void clear() {
+        for (size_t i = 0; i != sz; ++i) {
+            base.data[i].~T();
+        }
+        sz = 0;
+    }
+    void resize(size_t n) {
+        if (n == sz) {
+            return;
+        }
+        if (n < sz) {
+            try {
+                for (size_t i = n; i < sz; ++i) {
+                    base.data[i].~T();
+                }
+                sz = n;
+            } catch (...) {
+                throw;
+            }
+            return;
+        }
+        if (base.capacity > n) {
+            for (size_t i = sz; i < n; ++i) {
+                new (base.data + i) T();
+            }
+            sz = n;
+            return;
+        }
+        size_t i;
+        auto tmp = reinterpret_cast<T*>(operator new (n * sizeof(T)));
+        try {
+            for (i = 0; i < sz; ++i) {
+                new (tmp + i) T(*(base.data + i));
+            }
+            for (i = sz; i < n; ++i) {
+                new (tmp + i) T();
+            }
+        } catch (...) {
+            for (size_t j = 0; j < i; ++j) {
+                tmp[j].~T();
+            }
+            operator delete(tmp);
+            throw;
+        }
+        for (size_t i = 0; i < sz; ++i) {
+            base.data[i].~T();
+        }
+        operator delete(base.data);
+        base.data = tmp;
+        base.capacity = n;
+        sz = n;
+        tmp = nullptr;
+        operator delete(tmp);
+        return;
+    }
+    void reserve(size_t n) {
+        if (sz == 0) {
+            base.data = reinterpret_cast<T*>(operator new (n * sizeof(T)));
+            return;
+        }
+        if (n <= base.capacity) {
+            return;
+        }
+        size_t i;
+        auto tmp = reinterpret_cast<T*>(operator new (n * sizeof(T)));
+        try {
+            for (i = 0; i < sz; ++i) {
+                new (tmp + i) T(*(base.data + i));
+            }
+        } catch (...) {
+            for (size_t j = 0; j < i; ++j) {
+                tmp[j].~T();
+            }
+            operator delete(tmp);
+            throw;
+        }
+        for (size_t i = 0; i != sz; ++i) {
+            base.data[i].~T();
+        }
+        operator delete(base.data);
+        base.data = tmp;
+        base.capacity = n;
+        tmp = nullptr;
+        operator delete(tmp);
+    }
+    T* begin() {
+        return (base.data);
+    }
+    T* end() {
+        return (base.data + sz);
+    }
+    void swap(Vector& other) {
+        auto tmp = *this;
+        *this = other;
+        other = tmp;
+        tmp = Vector();
+    }
+    T& operator[](size_t pos) {
+        return base.data[pos];
+    }
+    const T& operator[](size_t pos) const {
+        return base.data[pos];
+    }
+};
