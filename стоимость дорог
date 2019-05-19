@@ -1,0 +1,196 @@
+#include <iostream>
+#include <vector>
+#include <unordered_map>
+
+struct edge {
+    long long int price;
+    size_t dest;
+};
+
+std::unordered_map<size_t, long long int> Val;
+std::unordered_map<size_t, std::vector<edge>> edges;
+
+
+class Heap {
+private:
+    std::vector<size_t> data = {};
+    std::unordered_map<size_t, size_t> finder = {};
+    size_t sz = 0;
+    size_t parent(size_t i) {
+        return (i - 1) / 2;
+    }
+    size_t left_child(size_t i) {
+        return 2 * i + 1;
+    }
+    size_t right_child(size_t i) {
+        return 2 * i + 2;
+    }
+
+public:
+    Heap() {
+    }
+    Heap(size_t n, int val) {
+        data.reserve(n);
+        for (size_t i = 0; i < n; ++i) {
+            data.push_back(i);
+            Val[i] = val;
+            finder[i] = i;
+        }
+        sz = n;
+    }
+    Heap(std::initializer_list<int> il) {
+        sz = il.size();
+        size_t i = 0;
+        for (auto elem : il) {
+            data[i] = i;
+            Val[i] = elem;
+            finder[i] = i;
+            ++i;
+        }
+        for(int i = sz / 2 + 1; i >= 0; --i) {
+            Heapify_down(i);
+        }
+    }
+    template <typename Iter>
+    Heap(Iter first, Iter last) {
+        auto it = first;
+        while (it != last) {
+            data.push_back(*it);
+            ++it;
+            ++sz;
+        }
+        for(int i = sz / 2 + 1; i >= 0; --i) {
+            Heapify_down(i);
+        }
+    }
+
+    size_t size() const {
+        return sz;
+    }
+    bool empty() const {
+        return sz == 0;
+    }
+    void Insert(int x) {
+        data.push_back(x);
+        Heapify_up(sz);
+        ++sz;
+    }
+    void Heapify_up(size_t i) {
+        while ((i > 0) && Val[data[i]] < Val[data[parent(i)]]) {
+            auto tmp = data[i];
+            data[i] = data[parent(i)];
+            data[parent(i)] = tmp;
+            finder[data[i]] = i;
+            i = parent(i);
+            finder[data[i]] = i;
+        }
+    }
+    void Heapify_down(size_t i) {
+        auto L = left_child(i);
+        auto R = right_child(i);
+        if (L < sz) {
+            size_t child;
+            if ((R < sz) && (Val[data[R]] < Val[data[L]])) {
+                child = R;
+            } else {
+                child = L;
+            }
+            if (Val[data[child]] < Val[data[i]]) {
+                auto tmp = data[i];
+                data[i] = data[child];
+                data[child] = tmp;
+                finder[data[i]] = i;
+                finder[data[child]] = child;
+                i = parent(i);
+                finder[data[i]] = i;
+                Heapify_down(child);
+            }
+        }
+    }
+    void decrease_key(size_t elem, long long int val) {
+        Val[elem] = val;
+        size_t i = 0;
+        /*while (i < sz && data[i] != elem) {
+            ++i;
+        }
+        if (i < sz && data[i] == elem) {
+            Heapify_up(i);
+        }*/
+        Heapify_up(finder[elem]);
+    }
+    size_t top() {
+        return data[0];
+    }
+    size_t pop() {
+        auto tmp = data[0];
+        data[0] = data[sz - 1];
+        data[sz - 1] = tmp;
+        finder[data[0]] = 0;
+        finder[data[sz - 1]] = sz - 1;
+        --sz;
+        Heapify_down(0);
+        return tmp;
+    }
+};
+
+
+int calculate_min_cost() {
+    size_t n, m;
+    std::cin >> n >> m;
+    for (int i = 0; i < m; ++i) {
+        size_t p, q;
+        std::cin >> p >> q;
+        p  = p - 1;
+        q  = q - 1;
+        edge e1;
+        e1.dest = q;
+        e1.price = 0;
+        edge e2;
+        e2.dest = p;
+        e2.price = 0;
+        edges[p].push_back(e1);
+        edges[q].push_back(e2);
+    }
+    size_t k;
+    std::cin >> k;
+    for(int i = 0; i < k; ++i) {
+        size_t a, b, c;
+        std::cin >> a >> b >> c;
+        b = b - 1;
+        a = a - 1;
+        edge e1;
+        e1.dest = b;
+        e1.price = c;
+        edge e2;
+        e2.dest = a;
+        e2.price = c;
+        edges[a].push_back(e1);
+        edges[b].push_back(e2);
+    }
+    size_t x, y;
+    std::cin >> x >> y;
+    x = x - 1;
+    y = y - 1;
+    Heap H(n, 1000000000);
+    H.decrease_key(x, 0);
+    while (H.size() != 0) {
+        auto v = H.top();
+        H.pop();
+        for (auto u : edges[v]) {
+            if (Val[v] + u.price < Val[u.dest]) {
+                H.decrease_key(u.dest, Val[v] + u.price);
+            }
+        }
+    }
+    if (Val[y] < 1000000000) {
+        return Val[y];
+    } else {
+        return -1;
+    }
+}
+
+
+int main() {
+    std::cout << calculate_min_cost();
+    return 0;
+}
