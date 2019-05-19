@@ -1,0 +1,274 @@
+#include <iostream>
+#include <iterator>
+#include <vector>
+
+template <typename T>
+void delete_zeroes(std::vector<T>& v) {
+    while (v.size() > 0 && v[v.size() - 1] == T(0)) {
+        v.pop_back();
+    }
+}
+
+template <typename T>
+class Polynomial {
+private:
+    std::vector<T> data;
+
+public:
+    Polynomial(const std::vector<T> coef) {
+        data = coef;
+        delete_zeroes(data);
+    }
+    Polynomial(T coef) {
+        if (coef == T(0)) {
+            data = {};
+        } else {
+            data = {coef};
+        }
+    }
+    template <typename Iter>
+    Polynomial(Iter first, Iter last) {
+        data = {};
+        data.reserve(std::distance(first, last));
+        for (Iter i = first; i != last; ++i) {
+            data.push_back(*i);
+        }
+        delete_zeroes(data);
+    }
+    Polynomial(const Polynomial& a) {
+        data = a.data;
+    }
+    Polynomial() {
+        data = {};
+    }
+    bool operator ==(const Polynomial& other) const& {
+        return data == other.data;
+    }
+    bool operator !=(const Polynomial& other) const& {
+        return !(*this == other);
+    }
+    int Degree() const& {
+        return data.size() - 1;
+    }
+    T operator[] (int i) const& {
+        if (i > Degree()) {
+            return T(0);
+        }
+        return data[i];
+    }
+    Polynomial& operator +=(Polynomial other) {
+        if (other.Degree() == -1) {
+            delete_zeroes(data);
+            return *this;
+        }
+        if (Degree() == -1) {
+            data = other.data;
+            delete_zeroes(data);
+            return *this;
+        }
+        for (size_t i = 0; i < data.size(); ++i) {
+            data[i] += other[i];
+        }
+        for (size_t i = data.size(); i <= other.data.size(); ++i) {
+            data.push_back(other[i]);
+        }
+        delete_zeroes(data);
+        return *this;
+    }
+    Polynomial& operator -=(Polynomial other) {
+        if (other.Degree() == -1) {
+            delete_zeroes(data);
+            return *this;
+        }
+        if (Degree() == -1) {
+            data = other.data;
+            delete_zeroes(data);
+            for (size_t i = 0; i != data.size(); ++i) {
+                data[i] = T(0) - data[i];
+            }
+            return *this;
+        }
+        for (size_t i = 0; i < data.size(); ++i) {
+            data[i] -= other[i];
+        }
+        for (size_t i = data.size(); i <= other.data.size(); ++i) {
+            data.push_back(T(0) - other[i]);
+        }
+        delete_zeroes(data);
+        return *this;
+    }
+    Polynomial operator +(const Polynomial other) const {
+        Polynomial ans = *this;
+        ans += other;
+        delete_zeroes(ans.data);
+        return ans;
+    }
+    Polynomial operator -(const Polynomial other) const {
+        Polynomial ans = *this;
+        ans -= other;
+        delete_zeroes(ans.data);
+        return ans;
+    }
+    typename std::vector<T>::const_iterator begin() const {
+        return data.begin();
+    }
+    typename std::vector<T>::const_iterator end() const {
+        return data.end();
+    }
+    Polynomial& operator *=(const Polynomial other) {
+        if (Degree() == -1 || other.Degree() == -1) {
+            data = {};
+            return *this;
+        }
+        std::vector<T> a(Degree() + other.Degree() + 1, T(1));
+        Polynomial ans{ a };
+        for (size_t i = 0; i < data.size() + other.data.size() - 1; ++i) {
+            T coef = T(0);
+            for (size_t j = 0; j <= i; ++j) {
+                if (j < data.size() && (i - j) < other.data.size()) {
+                    coef += data[j] * other[i - j];
+                }
+            }
+            ans.data[i] = coef;
+        }
+        delete_zeroes(data);
+        data = ans.data;
+        return *this;
+    }
+    Polynomial operator *(const Polynomial other) const {
+        Polynomial ans = *this;
+        ans *= other;
+        delete_zeroes(ans.data);
+        return ans;
+    }
+    T operator ()(const T& x) const {
+        T ans = T(0);
+        if (Degree() == -1) {
+            return ans;
+        }
+        for (size_t i = data.size() - 1; i > 0; --i) {
+            ans += data[i];
+            ans *= x;
+        }
+        ans += data[0];
+        return ans;
+    }
+    Polynomial operator / (const Polynomial g) const {
+        Polynomial tmp = *this;
+        Polynomial ans = {};
+        while (tmp.Degree() >= g.Degree()) {
+            std::vector<T> a(tmp.Degree() - g.Degree() + 1);
+            a[a.size() - 1] = tmp[tmp.Degree()] / g[g.Degree()];
+            tmp -= g * a;
+            ans += a;
+        }
+        return ans;
+    }
+    Polynomial operator % (const Polynomial g) const {
+        auto ans = (*this / g) * g;
+        ans = *this - ans;
+        return ans;
+    }
+};
+
+template <typename T>
+Polynomial<T> operator * (const T& a, Polynomial<T> other)  {
+    Polynomial<T> ans = other;
+    ans *= a;
+    other = ans;
+    return other;
+}
+
+template <typename T>
+std::ostream& operator<<(std::ostream& out, const Polynomial<T>& p) {
+    if (p.Degree() == -1) {
+        out << T(0);
+        return out;
+    }
+    if (p.Degree() == 0) {
+        out << p[0];
+        return out;
+    }
+    if (p.Degree() == 1) {
+        if (p[1] != T(0)) {
+            if (p[1] == T(1)) {
+                out << "x";
+            } else if (p[1] == T(-1)) {
+                out << "-x";
+            } else {
+                out << p[1] << "*" << "x";
+            }
+        }
+        if (p[0] != T(0)) {
+            if (p[0] > T(0)) {
+                out << "+";
+            }
+            out << p[0];
+        }
+        return out;
+    }
+    if (p[p.Degree()] == T(1)) {
+        out << "x^" << p.Degree();
+    } else if (p[p.Degree()] == T(-1)) {
+        out << "-x^" << p.Degree();
+    } else {
+    out << p[p.Degree()]  << "*" << "x^" << p.Degree();
+    }
+    for (size_t i = p.Degree() - 1; i > 0; --i) {
+        if (p[i] != T(0)) {
+            if (p[i] == T(1)) {
+                out << "+x";
+            } else if (p[i] == T(-1)) {
+                out << "-x";
+            } else {
+                if (p[i] > T(0)) {
+                    out << "+";
+                }
+                out << p[i] << "*" << "x";
+            }
+            if (i != 1) {
+                out << "^" << i;
+            }
+        }
+    }
+    if (p[0] != T(0)) {
+        if (p[0] > T(0)) {
+            out << "+";
+        }
+        out << p[0];
+    }
+    return out;
+}
+
+template <typename T>
+Polynomial<T> operator &(const Polynomial<T> f, const Polynomial<T> g) {
+    Polynomial<T> ans = {};
+    if (f.Degree() == -1) {
+        return ans;
+    }
+    for (size_t i = f.Degree(); i > 0; --i) {
+        ans += f[i];
+        ans *= g;
+    }
+    ans += f[0];
+    return ans;
+}
+
+template <typename T>
+Polynomial<T> operator ,(const Polynomial<T> f, const Polynomial<T> g) {
+    auto u = f;
+    auto v = g;
+    if (v.Degree() == -1) {
+        return u;
+    }
+    if (u.Degree() == -1) {
+        return v;
+    }
+    while (v.Degree() > -1) {
+        auto r = (u % v);
+        u = v;
+        v = r;
+    }
+    u = u / (u[u.Degree()]);
+    return u;
+}
