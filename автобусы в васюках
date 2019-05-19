@@ -1,0 +1,126 @@
+#include <iostream>
+#include <vector>
+#include <unordered_map>
+
+std::unordered_map<size_t, int> Key;
+
+template <typename T>
+class Heap {
+private:
+    std::vector<T> data = {};
+    size_t sz = 0;
+    size_t parent(size_t i) {
+        return (i - 1) / 2;
+    }
+    size_t left_child(size_t i) {
+        return 2 * i + 1;
+    }
+    size_t right_child(size_t i) {
+        return 2 * i + 2;
+    }
+
+public:
+    Heap() {
+    }
+    size_t size() {
+        return sz;
+    }
+    void Insert(int x) {
+        data.push_back(x);
+        Heapify_up(sz);
+        ++sz;
+    }
+    void Heapify_up(size_t i) {
+        while ((i > 0) && Key[data[i]] < Key[data[parent(i)]]) {
+            auto tmp = data[i];
+            data[i] = data[parent(i)];
+            data[parent(i)] = tmp;
+            i = parent(i);
+        }
+    }
+    void Heapify_down(size_t i) {
+        auto L = left_child(i);
+        auto R = right_child(i);
+        if (L < sz) {
+            size_t child;
+            if ((R < sz) && (Key[data[R]] < Key[data[L]])) {
+                child = R;
+            } else {
+                child = L;
+            }
+            if (Key[data[child]] < Key[data[i]]) {
+                auto tmp = data[i];
+                data[i] = data[child];
+                data[child] = tmp;
+                i = parent(i);
+                Heapify_down(child);
+            }
+        }
+    }
+    void Decrease_key(T elem, int key) {
+        Key[elem] = key;
+        size_t i = 0;
+        while (data[i] != elem) {
+            ++i;
+        }
+        if (i < sz) {
+            Heapify_up(i);
+        }
+    }
+    T Extract_min() {
+        auto tmp = data[0];
+        data[0] = data[sz - 1];
+        data[sz - 1] = tmp;
+        --sz;
+        Heapify_down(0);
+        return tmp;
+    }
+};
+
+struct edge {
+    int time1;
+    int time2;
+    size_t dest;
+};
+
+int main() {
+    size_t n;
+    std::cin >> n;
+    for (size_t i = 1; i != n + 1; ++i) {
+        Key[i] = 1000000;
+    }
+    size_t d;
+    size_t v;
+    std::cin >> d >> v;
+    size_t r;
+    std::cin >> r;
+    std::unordered_map<size_t, std::vector<edge>> edges;
+    for (int i = 0; i != r; ++i) {
+        int v, t1, u, t2;
+        std::cin >> v >> t1 >> u >> t2;
+        edge e;
+        e.time1 = t1;
+        e.time2 = t2;
+        e.dest = u;
+        edges[v].push_back(e);
+    }
+    Key[d] = 0;
+    Heap<size_t> H;
+    for (size_t i = 1; i != n + 1; ++i) {
+        H.Insert(i);
+    }
+    while (H.size() != 0) {
+        auto v = H.Extract_min();
+        for (auto u : edges[v]) {
+            if (Key[v] <= u.time1 && u.time2 < Key[u.dest]) {
+                H.Decrease_key(u.dest, u.time2);
+            }
+        }
+    }
+    if (Key[v] == 1000000) {
+        std::cout << -1;
+    } else {
+        std::cout << Key[v];
+    }
+    return 0;
+}
