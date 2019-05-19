@@ -1,0 +1,209 @@
+#include <cassert>
+#include <iostream>
+#include <vector>
+#include <utility>
+
+template <typename T>
+class Matrix;
+
+template <typename T>
+class MatrixIterator {
+private:
+    Matrix<T>& matrix;
+    size_t row, column;
+
+public:
+    MatrixIterator(Matrix<T>& m, size_t r, size_t c) : matrix(m), row(r), column(c) {
+    }
+    T& operator * () {
+        return matrix[row][column];
+    }
+    MatrixIterator& operator++() {
+        ++column;
+        if (column == matrix.size().second) {
+            column = 0;
+            ++row;
+        }
+        return *this;
+    }
+    MatrixIterator operator++(int) {
+        auto tmp = *this;
+        ++*this;
+        return tmp;
+    }
+    bool operator == (MatrixIterator other) const {
+        return row == other.row && column == other.column;
+    }
+    bool operator != (MatrixIterator other) const {
+        return !(*this == other);
+    }
+};
+
+template <typename T>
+class ConstMatrixIterator {
+private:
+    const Matrix<T>& matrix;
+    size_t row, column;
+
+public:
+    ConstMatrixIterator(const Matrix<T>& m, size_t r, size_t c) : matrix(m), row(r), column(c) {
+    }
+    const T& operator * () const {
+        return matrix[row][column];
+    }
+    ConstMatrixIterator& operator++() {
+        ++column;
+        if (column == matrix.size().second) {
+            column = 0;
+            ++row;
+        }
+        return *this;
+    }
+    ConstMatrixIterator operator++(int) {
+        auto tmp = *this;
+        ++*this;
+        return tmp;
+    }
+    bool operator == (ConstMatrixIterator other) const {
+        return row == other.row && column == other.column;
+    }
+    bool operator != (ConstMatrixIterator other) const {
+        return !(*this == other);
+    }
+};
+
+template <typename T>
+class Matrix {
+private:
+    std::vector<std::vector<T>> data;
+
+public:
+    Matrix(const std::vector<std::vector<T>>& vect) {
+        data = vect;
+    }
+    Matrix(const Matrix<T>& other) {
+        data = other.data;
+    }
+    Matrix() {
+        data = {};
+    }
+    std::pair<size_t, size_t> size() const& {
+        if (data.empty()) {
+            return { 0, 0 };
+        } else {
+            return { data.size(), data[0].size() };
+        }
+    }
+    const std::vector<T>& operator[](size_t i) const {
+        return data[i];
+    }
+    std::vector<T>& operator[](size_t i) {
+        return data[i];
+    }
+    Matrix& operator +=(const Matrix<T>& other) {
+        if (size() == other.size()) {
+            for (size_t i = 0; i != size().first; ++i) {
+                for (size_t j = 0; j != size().second; ++j) {
+                    data[i][j] += other.data[i][j];
+                }
+            }
+        }
+        return *this;
+    }
+    Matrix operator +(const Matrix<T>& other) const& {
+        Matrix<T> ans = *this;
+        ans += other;
+        return ans;
+    }
+    template <typename number>
+    Matrix& operator *=(const number& n) {
+        for (size_t i = 0; i != size().first; ++i) {
+            for (size_t j = 0; j != size().second; ++j) {
+                data[i][j] *= n;
+            }
+        }
+        return *this;
+    }
+    template <typename number>
+    Matrix operator *(const number& n) const& {
+        Matrix<T> ans = *this;
+        ans *= n;
+        return ans;
+    }
+    Matrix& transpose() {
+        std::vector<std::vector<T>> mt;
+        mt.reserve(size().second);
+        for (size_t i = 0; i != size().second; ++i) {
+            mt.push_back({});
+            mt[i].reserve(size().first);
+            for (size_t j = 0; j != size().first; ++j) {
+                mt[i].push_back(data[j][i]);
+            }
+        }
+        data = mt;
+        return *this;
+    }
+    Matrix transposed() const& {
+        Matrix<T> ans = *this;
+        ans.transpose();
+        return ans;
+    }
+    Matrix& operator *=(const Matrix& other) {
+        assert(other.size().first == size().second);
+        std::vector<std::vector<T>> ans;
+        ans.reserve(data.size());
+        for (size_t i = 0; i != size().first; ++i) {
+            ans.push_back({});
+            ans[i].resize(other.size().second);
+            for (size_t j = 0; j != other.size().second; ++j) {
+                for (size_t h = 0; h != size().second; ++h) {
+                    ans[i][j] += data[i][h] * other.data[h][j];
+                }
+            }
+        }
+        data = ans;
+        return *this;
+    }
+    Matrix operator *(const Matrix& other) const& {
+        Matrix<T> ans = *this;
+        ans *= other;
+        return ans;
+    }
+    ConstMatrixIterator<T> begin() const {
+        return { *this, 0, 0 };
+    }
+    MatrixIterator<T> begin() {
+        return { *this, 0, 0 };
+    }
+    ConstMatrixIterator<T> end() const {
+        return { *this, size().first, 0 };
+    }
+    MatrixIterator<T> end() {
+        return { *this, size().first, 0 };
+    }
+};
+
+template <typename T>
+std::ostream& operator<<(std::ostream& out, const Matrix<T>& m) {
+    auto a = m.size().first;
+    auto b = m.size().second;
+    for (size_t i = 0; i < a; ++i) {
+        for (size_t j = 0; j < b; ++j) {
+            if (b != 0 && j < b - 1) {
+                out << m[i][j] << "\t";
+            } else {
+                out << m[i][j];
+            }
+        }
+        if (a != 0 && i < a - 1) {
+            out << "\n";
+        }
+    }
+    return out;
+}
+template <typename T, typename number>
+Matrix<T> operator *(const number& n, const Matrix<T>& matr) {
+    Matrix<T> ans = matr;
+    ans *= n;
+    return ans;
+}
