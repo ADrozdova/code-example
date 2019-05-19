@@ -1,0 +1,95 @@
+#include <algorithm>
+#include <iostream>
+#include <unordered_map>
+#include <iomanip>
+#include <vector>
+#include <cmath>
+
+struct Point {
+    double x;
+    double y;
+};
+
+struct Edge {
+    size_t a;
+    size_t b;
+    double length;
+};
+
+size_t Find(size_t p, std::unordered_map<size_t, size_t>& par) {
+    while (p != par[p]) {
+        p = par[p];
+    }
+    return p;
+}
+
+int main() {
+    double ans = 0.0;
+    size_t n, m;
+    std::cin >> n;
+    std::unordered_map<size_t, size_t> parents;
+    std::unordered_map<size_t, size_t> rk;
+    std::vector<Point> points;
+    std::vector<Edge> edges;
+    Point poi;
+    poi.x = -1;
+    poi.y = -1;
+    points.push_back(poi);
+    for (size_t j = 1; j != n + 1; ++j) {
+        double a, b;
+        std::cin >> a >> b;
+        Point p;
+        p.x = a;
+        p.y = b;
+        for (size_t i = 1; i < j; ++i) {
+            Edge ed;
+            ed.a = i;
+            ed.b = j;
+            ed.length = pow(points[i].x - p.x,  2) + pow(points[i].y - p.y, 2);
+            edges.push_back(ed);
+        }
+        parents[j] = j;
+        rk[j] = 0;
+        points.push_back(p);
+    }
+    std::cin >> m;
+    for (size_t i = 0; i < m; ++i) {
+        int a, b;
+        std::cin >> a >> b;
+        auto ap = Find(a, parents);
+        auto bp = Find(b, parents);
+        if (ap != bp) {
+            if (rk[ap] > rk[bp]) {
+                parents[bp] = ap;
+            }
+            if (rk[ap] < rk[bp]) {
+                parents[ap] = bp;
+            }
+            if (rk[ap] == rk[bp]) {
+                ++rk[ap];
+                parents[bp] = ap;
+            }
+        }
+    }
+    std::sort(edges.begin(), edges.end(), [](Edge a, Edge b) {return a.length < b.length;});
+    for (auto ed : edges) {
+        auto ap = Find(ed.a, parents);
+        auto bp = Find(ed.b, parents);
+        if (ap != bp) {
+            if (rk[ap] > rk[bp]) {
+                parents[bp] = ap;
+            }
+            if (rk[ap] < rk[bp]) {
+                parents[ap] = bp;
+            }
+            if (rk[ap] == rk[bp]) {
+                ++rk[ap];
+                parents[bp] = ap;
+            }
+            ans += sqrt(ed.length);
+        }
+    }
+    std::cout << std::fixed << std::setprecision(6) << ans;
+    return 0;
+}
+
