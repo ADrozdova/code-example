@@ -1,0 +1,135 @@
+#include <algorithm>
+#include <iostream>
+#include <unordered_map>
+#include <iomanip>
+#include <vector>
+
+struct Edge {
+    size_t number;
+    size_t a;
+    size_t b;
+    int length;
+    bool printed;
+};
+
+size_t Find(size_t p, std::unordered_map<size_t, size_t>& par) {
+    while (p != par[p]) {
+        p = par[p];
+    }
+    return p;
+}
+
+void find_best(int a, int b, std::vector<std::vector<int>>& A, int was_swap, std::vector<Edge>& connected) {
+    if (A[a][b] == 0) {
+        return;
+    }
+    if (A[a][b] == A[a - 1][b]) {
+        find_best(a - 1, b, A, was_swap, connected);
+    } else {
+        std::cout << connected[a].number << " " << 5 + was_swap << "\n";
+        connected[a].printed = true;
+        find_best(a - 1, b - connected[a].length, A, was_swap, connected);
+    }
+}
+
+int main() {
+    size_t n, m;
+    std::cin >> n >> m;
+    std::unordered_map<size_t, size_t> parents;
+    std::unordered_map<size_t, size_t> rk;
+    std::vector<Edge> edges;
+    for (size_t i = 1; i != n + 1; ++ i) {
+        parents[i] = i;
+        rk[i] = 0;
+    }
+    for (size_t i = 1; i != m + 1; ++i) {
+        size_t x, y, len;
+        std::cin >> x >> y >> len;
+        Edge ed;
+        ed.number = i;
+        ed.a = x;
+        ed.b = y;
+        ed.length = len;
+        ed.printed = false;
+        edges.push_back(ed);
+    }
+    std::sort(edges.begin(), edges.end(), [](Edge a, Edge b) {return a.length < b.length;});
+    std::vector<Edge> connected;
+    Edge ed;
+        ed.number = 0;
+        ed.a = 0;
+        ed.b = 0;
+        ed.length = 0;
+        ed.printed = true;
+    connected.push_back(ed);
+    int l_sum = 0;
+    for (auto ed : edges) {
+        auto ap = Find(ed.a, parents);
+        auto bp = Find(ed.b, parents);
+        if (ap != bp) {
+            if (rk[ap] > rk[bp]) {
+                parents[bp] = ap;
+            }
+            if (rk[ap] < rk[bp]) {
+                parents[ap] = bp;
+            }
+            if (rk[ap] == rk[bp]) {
+                ++rk[ap];
+                parents[bp] = ap;
+            }
+            connected.push_back(ed);
+            l_sum += ed.length;
+        }
+    }
+    int P5, Q5, P6, Q6;
+    std::cin >> P5 >> Q5 >> P6 >> Q6;
+    if (l_sum > Q5 + Q6) {
+        std::cout << "Impossible\n";
+        return 0;
+    }
+    int cnt = 0;
+    for (size_t v = 1; v < n; ++v) {
+        if (parents[v] == v) {
+            ++cnt;
+        }
+    }
+    if (cnt >= 2) {
+        std::cout << "Impossible\n";
+        return 0;
+    }
+    int was_swap = 0;
+    if (P5 > P6) {
+        std::swap(P5, P6);
+        std::swap(Q5, Q6);
+        was_swap = 1;
+    }
+    std::vector<std::vector<int>> A;
+    A.resize(connected.size() + 1);
+    A[0].resize(Q5 + 1);
+    for (int i = 1; i != connected.size(); ++i) {
+        A[i].resize(Q5 + 1);
+        for(int j = 1; j < Q5 + 1; ++j) {
+            if (j >= connected[i].length) {
+                if ((A[i-1][j]) > (A[i-1][j - connected[i].length] + connected[i].length)) {
+                    A[i][j] = A[i-1][j];
+                } else {
+                    A[i][j] = A[i-1][j - connected[i].length] + connected[i].length;
+                }
+            } else {
+                A[i][j] = A[i - 1][j];
+            }
+        }
+    }
+    if (l_sum - A[connected.size() - 1][Q5]> + Q6) {
+        std::cout << "Impossible\n";
+        return 0;
+    }
+    std::cout << A[connected.size() - 1][Q5] * P5 + (l_sum - A[connected.size() - 1][Q5]) * P6 << "\n";
+    find_best(connected.size() - 1, Q5, A, was_swap, connected);
+    for (auto edg : connected) {
+        if (!edg.printed) {
+            std::cout << edg.number << " " << 6 - was_swap << "\n";
+        }
+    }
+    return 0;
+}
